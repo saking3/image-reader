@@ -1,0 +1,68 @@
+import os
+import exifread
+import sys
+
+# These are the things we want:
+# Image BitsPerSample (Short): 1
+# Image Compression (Short): T6/Group 4 Fax
+# Image XResolution (Ratio): 600
+# Image YResolution (Ratio): 600
+
+desired_fields = {'Image BitsPerSample': '1',
+                  'Image Compression': 'T6/Group 4 Fax',
+                  'Image XResolution': '600',
+                  'Image YResolution': '600'}
+
+
+directory = sys.argv[1]
+
+for f in os.listdir(directory):
+    full_file_path = os.path.join(directory, f)
+    print("Inspecting file: {0}".format(full_file_path))
+    image = open(full_file_path, 'rb')
+    tags = exifread.process_file(image)
+    image.close()
+    for key, value in desired_fields.items():
+        if key not in tags:
+            print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+            print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+            break
+        if value == str(tags[key]):
+            print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+        else:
+            print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+            print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+            break
+    print("File matched: {0}".format(f))
+
+
+# Everything else below here is comments or old code. Nothing happens below here.
+    
+'''
+    if all(f in tags for f in desired_fields.keys()):
+        print "Found all fields in file {0}, continuing to process".format(full_file_path)
+'''
+
+
+''' examples data types:
+my_dictionary = {"some key": "some value",
+                 "another key": {"nested key": "nested value"}}
+my_dictionary2 = {"some key": "some value",
+                 "another key": {"nested key": "nested value"}}
+my_list = ['foo',
+           'bar',
+           'baz']
+           
+list_of_dicts = [my_dictionary,
+                 my_dictionary2]
+                 
+third_dict = {"foo": "bar"}
+
+list_of_dicts.append(third_dict)
+
+my_tuples = ('foo',
+             'bar',
+             'baz')
+             
+# End examples
+'''
