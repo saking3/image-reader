@@ -55,7 +55,7 @@ w = csv.writer(open(directory + ".csv", "w")) #writing to .csv
 #prints a list of all tifs  
 for (root, dirs, files) in os.walk(directory):
     for f in files: 
-        full_file_path = os.path.join(directory, f) 
+        full_file_path = os.path.join(root, f) 
         fname, fextension = os.path.splitext(full_file_path)
         print("Inspecting file: {0}".format(full_file_path))
         
@@ -70,7 +70,7 @@ for (root, dirs, files) in os.walk(directory):
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         bitonal_error_count += 1 
-                        w.writerow(["failed bitonal test"] + ["missing key: " + str(key)] + [full_file_path])
+                        #w.writerow(["failed bitonal test"] + ["missing key: " + str(key)] + [full_file_path])
                         break
                     if value == str(tags[key]):
                         print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
@@ -78,12 +78,12 @@ for (root, dirs, files) in os.walk(directory):
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         bitonal_error_count += 1 
-                        w.writerow(["failed bitonal test"] + 
-                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
-                                   [full_file_path])
+                        #w.writerow(["failed bitonal test"] + 
+                                   #["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
+                                   #[full_file_path])
                         break
+                    bitonal_count += 1
                 print("File matched: {0}".format(f))
-                bitonal_count += 1
             else:
                 pass
             
@@ -101,12 +101,12 @@ for (root, dirs, files) in os.walk(directory):
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         color_error_count += 1
-                        w.writerow(["failed color test"] + 
-                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
-                                   [full_file_path])
+                        #w.writerow(["failed color test"] + 
+                                   #["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
+                                   #[full_file_path])
                         break
+                    color_count += 1 
                 print("File matched: {0}".format(f))
-                color_count += 1 
             else:
                 pass
             
@@ -124,12 +124,12 @@ for (root, dirs, files) in os.walk(directory):
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         grayscale_error_count += 1
-                        w.writerow(["failed grayscale test"] + 
-                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
-                                   [full_file_path])
+                        #w.writerow(["failed grayscale test"] + 
+                                   #["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
+                                   #[full_file_path])
                         break
-                    print("File matched: {0}".format(f))
                     grayscale_count += 1
+                print("File matched: {0}".format(f))
             else:
                 pass
             
@@ -148,4 +148,4 @@ w.writerow(["color_error_count = "] + [str(color_error_count)])
 w.writerow(["grayscale_error_count = "] + [str(grayscale_error_count)])
 w.writerow(["bitonal_count = "] + [str(bitonal_count / 4)])
 w.writerow(["color_count = "] + [str(color_count / 4)])
-w.writerow(["grayscale_count = "] + [str(grayscale_count / 4)])            
+w.writerow(["grayscale_count = "] + [str(grayscale_count / 4)])                 
