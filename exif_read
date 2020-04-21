@@ -31,7 +31,7 @@ bitonal_fields = {'Image BitsPerSample': '1',
                   'Image XResolution': '600',
                   'Image YResolution': '600'}
 #color image desired fields
-color_fields = {'Image BitsPerSample': '8,8,8', 
+color_fields = {'Image BitsPerSample': '[8, 8, 8]', 
                 'Image Compression': 'Uncompressed', 
                 'Image XResolution': '400', 
                 'Image YResolution': '400'}
@@ -44,9 +44,6 @@ grayscale_fields = {'Image BitsPerSample': '8',
 bitonal_count = 0 #total number of bitonal images
 color_count = 0 #total number of color images
 grayscale_count = 0 #total number of grayscale images
-bitonal_error = False #these failed the bitonal test somehow        
-color_error = False #these failed the color test somehow
-grayscale_error = False #these failed the grayscale test somehow 
 error_count = 0 
 
 #edit the file path to save the document to the folder you want
@@ -83,7 +80,7 @@ for (root, dirs, files) in os.walk(directory):
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         bitonal_error = True
                         break
-                    bitonal_count += 1
+                    bitonal_check += 1
                 print("File matched: {0}".format(f))
             else:
                 pass
@@ -100,7 +97,7 @@ for (root, dirs, files) in os.walk(directory):
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         color_error = True
                         break
-                    color_count += 1 
+                    color_check += 1 
                 print("File matched: {0}".format(f))
             else:
                 pass
@@ -117,7 +114,7 @@ for (root, dirs, files) in os.walk(directory):
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         grayscale_error = True
                         break
-                    grayscale_count += 1
+                    grayscale_check += 1
                 print("File matched: {0}".format(f))
             else:
                 pass
@@ -126,7 +123,7 @@ for (root, dirs, files) in os.walk(directory):
                 error_count += 1 
                 print(str(full_file_path + " failed all tests"))
                 w.writerow(["failed all tests"] + [full_file_path])
-                
+                w.writerow([])
                 
             if bitonal_check == 4 :
                 bitonal_count +=1 
@@ -154,4 +151,4 @@ print("grayscale_count = " + str(grayscale_count))
 w.writerow(["error_count = "] + [str(error_count)])
 w.writerow(["bitonal_count = "] + [str(bitonal_count)])
 w.writerow(["color_count = "] + [str(color_count)])
-w.writerow(["grayscale_count = "] + [str(grayscale_count)])           
+w.writerow(["grayscale_count = "] + [str(grayscale_count)])                  
