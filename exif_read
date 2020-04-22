@@ -1,68 +1,176 @@
+"""
+Created on Tue Apr  7 09:41:41 2020
+@author: Sarah King
+description: File will pull and analyze all .tifs from a directory, quantifying 
+             how many of them fit certain conditions.
+             .csv file will be created with final results of analysis. 
+             In the command prompt, you must enter a file directory (as a string), 
+             and whether or not you want to run a bitonal test(True/False), a color
+             test (True/False), and a grayscale test (True/False)
+             
+example cmd input: exifreader.py "C:\\Users\Sarah\Documents\failure test set" True True True
+"""
+
 import os
-import exifread
-import sys
+import exifread 
+import argparse 
+import csv 
 
-# These are the things we want:
-# Image BitsPerSample (Short): 1
-# Image Compression (Short): T6/Group 4 Fax
-# Image XResolution (Ratio): 600
-# Image YResolution (Ratio): 600
+# cmd user inputs
+#user is able to initially input a file director and the types of 
+#analyses they would like to run on the file
+parser = argparse.ArgumentParser()
+parser.add_argument("directory", type=str,
+                    help="Enter a directory. Please use quotation marks around it!")
+parser.add_argument("bitonal", type=bool,
+                    help="Would you like to test for bitonal images? Enter True or False.")
+parser.add_argument("color", type=bool,
+                    help="Would you like to test for color images? Enter True or False.")
+parser.add_argument("grayscale", type=bool,
+                    help="Would you like to test for grayscale images? Enter True or False.")
+args = parser.parse_args()
+directory = args.directory 
 
-desired_fields = {'Image BitsPerSample': '1',
+#bitonal desired fields
+bitonal_fields = {'Image BitsPerSample': '1',
                   'Image Compression': 'T6/Group 4 Fax',
                   'Image XResolution': '600',
                   'Image YResolution': '600'}
+#color image desired fields
+color_fields = {'Image BitsPerSample': '[8, 8, 8]', 
+                'Image Compression': 'Uncompressed', 
+                'Image XResolution': '400', 
+                'Image YResolution': '400'}
+#grayscale desired fields 
+grayscale_fields = {'Image BitsPerSample': '8', 
+                    'Image Compression': 'Uncompressed', 
+                    'Image XResolution': '400', 
+                    'Image YResolution': '400'}
+        
+bitonal_count = 0 #total number of bitonal images
+color_count = 0 #total number of color images
+grayscale_count = 0 #total number of grayscale images
+error_count = 0 
 
-
-directory = sys.argv[1]
-
-for f in os.listdir(directory):
-    full_file_path = os.path.join(directory, f)
-    print("Inspecting file: {0}".format(full_file_path))
-    image = open(full_file_path, 'rb')
-    tags = exifread.process_file(image)
-    image.close()
-    for key, value in desired_fields.items():
-        if key not in tags:
-            print("Did not find field {0}, halting processing of file: {1}".format(key, f))
-            print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-            break
-        if value == str(tags[key]):
-            print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+#edit the file path to save the document to the folder you want
+w = csv.writer(open(directory + ".csv", "w")) #writing to .
+w.writerow(["bitonal exif data"] + ['Image BitsPerSample: ' + str(bitonal_fields['Image BitsPerSample'])] +  
+           ['Image Compression: ' + str(bitonal_fields['Image Compression'])] + ['Image XResolution: ' + str(bitonal_fields['Image XResolution'])] +
+           ['Image YResolution: ' + str(bitonal_fields['Image YResolution'])])
+w.writerow(["color exif data"] + ['Image BitsPerSample: ' + str(color_fields['Image BitsPerSample'])] +  
+           ['Image Compression: ' + str(color_fields['Image Compression'])] + ['Image XResolution: ' + str(color_fields['Image XResolution'])] +
+           ['Image YResolution: ' + str(color_fields['Image YResolution'])])
+w.writerow(["grayscale exif data"] + ['Image BitsPerSample: ' + str(grayscale_fields['Image BitsPerSample'])] +  
+           ['Image Compression: ' + str(grayscale_fields['Image Compression'])] + ['Image XResolution: ' + str(grayscale_fields['Image XResolution'])] +
+           ['Image YResolution: ' + str(grayscale_fields['Image YResolution'])])
+        
+# take files in the inputted directory, prints all exifdata for tifs and
+#prints a list of all tifs  
+for (root, dirs, files) in os.walk(directory):
+    for f in files: 
+        bitonal_error = False #these failed the bitonal test somehow        
+        color_error = False #these failed the color test somehow
+        grayscale_error = False #these failed the grayscale test somehow 
+        bitonal_check = 0 
+        color_check = 0
+        grayscale_check = 0 
+        full_file_path = os.path.join(root, f) 
+        fname, fextension = os.path.splitext(full_file_path)
+        print("Inspecting file: {0}".format(full_file_path))
+        
+        if fextension == ".tif":
+            image = open(full_file_path, 'rb')
+            tags = exifread.process_file(image) #returns exif tags 
+            image.close() 
+            
+            if args.bitonal == True: 
+                for key, value in bitonal_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        bitonal_error = True  
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        bitonal_error = True
+                        break
+                    bitonal_check += 1
+                print("File matched: {0}".format(f))
+            else:
+                pass
+            
+            if args.color == True: 
+                for key, value in color_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        color_error = True
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        color_error = True
+                        break
+                    color_check += 1 
+                print("File matched: {0}".format(f))
+            else:
+                pass
+            
+            if args.grayscale == True: 
+                for key, value in grayscale_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        grayscale_error = True
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        grayscale_error = True
+                        break
+                    grayscale_check += 1
+                print("File matched: {0}".format(f))
+            else:
+                pass
+            
+            if bitonal_error == True and color_error == True and grayscale_error == True:
+                error_count += 1 
+                print(str(full_file_path + " failed all tests"))
+                w.writerow(["failed all tests"] + [full_file_path])
+                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
+                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
+                
+            if bitonal_check == 4 :
+                bitonal_count +=1 
+            elif bitonal_check != 4 : 
+                bitonal_check = 0
+                
+            if color_check == 4 :
+                color_count += 1
+            elif color_check != 4: 
+                color_check = 0 
+                
+            if grayscale_check == 4 :
+                grayscale_count += 1
+            elif grayscale_check != 4: 
+                grayscale_check = 0  
+                     
         else:
-            print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
-            print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-            break
-    print("File matched: {0}".format(f))
-
-
-# Everything else below here is comments or old code. Nothing happens below here.
-    
-'''
-    if all(f in tags for f in desired_fields.keys()):
-        print "Found all fields in file {0}, continuing to process".format(full_file_path)
-'''
-
-
-''' examples data types:
-my_dictionary = {"some key": "some value",
-                 "another key": {"nested key": "nested value"}}
-my_dictionary2 = {"some key": "some value",
-                 "another key": {"nested key": "nested value"}}
-my_list = ['foo',
-           'bar',
-           'baz']
-           
-list_of_dicts = [my_dictionary,
-                 my_dictionary2]
-                 
-third_dict = {"foo": "bar"}
-
-list_of_dicts.append(third_dict)
-
-my_tuples = ('foo',
-             'bar',
-             'baz')
-             
-# End examples
-'''
+            print("File is not in .tif format")
+        
+print("error_count = " + str(error_count))
+print("bitonal_count = " + str(bitonal_count))
+print("color_count = " + str(color_count))
+print("grayscale_count = " + str(grayscale_count)) 
+      
+w.writerow(["error_count = "] + [str(error_count)])
+w.writerow(["bitonal_count = "] + [str(bitonal_count)])
+w.writerow(["color_count = "] + [str(color_count)])
+w.writerow(["grayscale_count = "] + [str(grayscale_count)])           
