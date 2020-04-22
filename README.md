@@ -2,7 +2,7 @@
 
 README
 
-exifread is a command line tool that accepts a directory as an input, and for each .tif in the directory, will determine the color scheme (bitonal, color, or grayscale) of the image using exif data. A csv file will be written with a list of files with an unexpected output (aka, files that are not .tifs, or are not color, bitonal, or grayscale) and a final count of how many files fit each category. In order to work, the script needs 1 revision. Change the file path in line 69 to save the excel spreadsheet to a preferred file location. 
+exifread is a command line tool that accepts a directory as an input, and for each .tif in the directory, will determine the color scheme (bitonal, color, or grayscale) of the image using exif data. A csv file will be written with a list of files with an unexpected output (aka, files that are not .tifs, or are not color, bitonal, or grayscale) and a final count of how many files fit each category. The .csv will be saved wherever the directory is located. 
 
 The four cmd inputs accepted are: 
 The file directory (as a string, so please enter in quotes)
