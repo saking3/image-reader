@@ -15,6 +15,7 @@ If you would like to test for color images (Boolean)
 If you would like to test for grayscale images (Boolean)
 
 An example input in the cmd would look like: exifreader.py "C:\Users\Sarah\Documents\failure test set" True False True
+
 This input would run only the bitonal and grayscale tests on the selected directory. 
 
 CONTACT
