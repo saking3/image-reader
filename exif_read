@@ -1,8 +1,14 @@
 """
 Created on Tue Apr  7 09:41:41 2020
 @author: Sarah King
-description: File will pull and analyze all .tifs from a directory, quantifying how many of them fit certain conditions.
+description: File will pull and analyze all .tifs from a directory, quantifying 
+             how many of them fit certain conditions.
              .csv file will be created with final results of analysis. 
+             In the command prompt, you must enter a file directory (as a string), 
+             and whether or not you want to run a bitonal test(True/False), a color
+             test (True/False), and a grayscale test (True/False)
+             
+example cmd input: exifreader.py "C:\\Users\Sarah\Documents\failure test set" True True True
 """
 
 import os
@@ -47,7 +53,16 @@ grayscale_count = 0 #total number of grayscale images
 error_count = 0 
 
 #edit the file path to save the document to the folder you want
-w = csv.writer(open(directory + ".csv", "w")) #writing to .csv
+w = csv.writer(open(directory + ".csv", "w")) #writing to .
+w.writerow(["bitonal exif data"] + ['Image BitsPerSample: ' + str(bitonal_fields['Image BitsPerSample'])] +  
+           ['Image Compression: ' + str(bitonal_fields['Image Compression'])] + ['Image XResolution: ' + str(bitonal_fields['Image XResolution'])] +
+           ['Image YResolution: ' + str(bitonal_fields['Image YResolution'])])
+w.writerow(["color exif data"] + ['Image BitsPerSample: ' + str(color_fields['Image BitsPerSample'])] +  
+           ['Image Compression: ' + str(color_fields['Image Compression'])] + ['Image XResolution: ' + str(color_fields['Image XResolution'])] +
+           ['Image YResolution: ' + str(color_fields['Image YResolution'])])
+w.writerow(["grayscale exif data"] + ['Image BitsPerSample: ' + str(grayscale_fields['Image BitsPerSample'])] +  
+           ['Image Compression: ' + str(grayscale_fields['Image Compression'])] + ['Image XResolution: ' + str(grayscale_fields['Image XResolution'])] +
+           ['Image YResolution: ' + str(grayscale_fields['Image YResolution'])])
         
 # take files in the inputted directory, prints all exifdata for tifs and
 #prints a list of all tifs  
@@ -72,12 +87,14 @@ for (root, dirs, files) in os.walk(directory):
                 for key, value in bitonal_fields.items():
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         bitonal_error = True  
                         break
                     if value == str(tags[key]):
                         print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
                     else:
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         bitonal_error = True
                         break
                     bitonal_check += 1
@@ -89,12 +106,14 @@ for (root, dirs, files) in os.walk(directory):
                 for key, value in color_fields.items():
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         color_error = True
                         break
                     if value == str(tags[key]):
                         print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
                     else:
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         color_error = True
                         break
                     color_check += 1 
@@ -106,12 +125,14 @@ for (root, dirs, files) in os.walk(directory):
                 for key, value in grayscale_fields.items():
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         grayscale_error = True
                         break
                     if value == str(tags[key]):
                         print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
                     else:
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         grayscale_error = True
                         break
                     grayscale_check += 1
@@ -123,7 +144,8 @@ for (root, dirs, files) in os.walk(directory):
                 error_count += 1 
                 print(str(full_file_path + " failed all tests"))
                 w.writerow(["failed all tests"] + [full_file_path])
-                w.writerow([])
+                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
+                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
                 
             if bitonal_check == 4 :
                 bitonal_count +=1 
@@ -151,4 +173,4 @@ print("grayscale_count = " + str(grayscale_count))
 w.writerow(["error_count = "] + [str(error_count)])
 w.writerow(["bitonal_count = "] + [str(bitonal_count)])
 w.writerow(["color_count = "] + [str(color_count)])
-w.writerow(["grayscale_count = "] + [str(grayscale_count)])                  
+w.writerow(["grayscale_count = "] + [str(grayscale_count)])           
