@@ -22,11 +22,11 @@ import csv
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", type=str,
                     help="Enter a directory. Please use quotation marks around it!")
-parser.add_argument("bitonal", type=bool,
+parser.add_argument("bitonal", type=str,
                     help="Would you like to test for bitonal images? Enter True or False.")
-parser.add_argument("color", type=bool,
+parser.add_argument("color", type=str,
                     help="Would you like to test for color images? Enter True or False.")
-parser.add_argument("grayscale", type=bool,
+parser.add_argument("grayscale", type=str,
                     help="Would you like to test for grayscale images? Enter True or False.")
 args = parser.parse_args()
 directory = args.directory 
@@ -50,10 +50,12 @@ grayscale_fields = {'Image BitsPerSample': '8',
 bitonal_count = 0 #total number of bitonal images
 color_count = 0 #total number of color images
 grayscale_count = 0 #total number of grayscale images
-error_count = 0 
+error_count = 0 #number of files that fail the selected test
 
-#edit the file path to save the document to the folder you want
-w = csv.writer(open(directory + ".csv", "w")) #writing to .
+#this creates and saves a csv to the same location as the inputted directory
+w = csv.writer(open(directory + ".csv", "w"))
+
+#this creates a key at the top of the .csv with the expected data for each test
 w.writerow(["bitonal exif data"] + ['Image BitsPerSample: ' + str(bitonal_fields['Image BitsPerSample'])] +  
            ['Image Compression: ' + str(bitonal_fields['Image Compression'])] + ['Image XResolution: ' + str(bitonal_fields['Image XResolution'])] +
            ['Image YResolution: ' + str(bitonal_fields['Image YResolution'])])
@@ -64,13 +66,14 @@ w.writerow(["grayscale exif data"] + ['Image BitsPerSample: ' + str(grayscale_fi
            ['Image Compression: ' + str(grayscale_fields['Image Compression'])] + ['Image XResolution: ' + str(grayscale_fields['Image XResolution'])] +
            ['Image YResolution: ' + str(grayscale_fields['Image YResolution'])])
         
-# take files in the inputted directory, prints all exifdata for tifs and
-#prints a list of all tifs  
+#for each file in the directory, this will run the selected test and tell you
+#which images are of which type. non .tifs are skipped entirely. 
 for (root, dirs, files) in os.walk(directory):
     for f in files: 
         bitonal_error = False #these failed the bitonal test somehow        
         color_error = False #these failed the color test somehow
         grayscale_error = False #these failed the grayscale test somehow 
+        #counts the number of key/value pairs that match for each .tif
         bitonal_check = 0 
         color_check = 0
         grayscale_check = 0 
@@ -83,26 +86,25 @@ for (root, dirs, files) in os.walk(directory):
             tags = exifread.process_file(image) #returns exif tags 
             image.close() 
             
-            if args.bitonal == True: 
+            #this runs all 3 tests. 
+            if args.bitonal == "True" and args.color == "True" and args.grayscale == "True": 
                 for key, value in bitonal_fields.items():
-                    if key not in tags:
+                    if key not in tags: #tag is missing from exifdata!
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        bitonal_error = True 
+                        break
+                    if value == str(tags[key]): #key and data have matched 
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else: #key is present but value does not match 
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         bitonal_error = True  
                         break
-                    if value == str(tags[key]):
-                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
-                    else:
-                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
-                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        bitonal_error = True
-                        break
-                    bitonal_check += 1
+                    bitonal_check +=1
+                    print("bitonal_check = " + str(bitonal_check))
                 print("File matched: {0}".format(f))
-            else:
-                pass
-            
-            if args.color == True: 
+                
                 for key, value in color_fields.items():
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
@@ -116,51 +118,291 @@ for (root, dirs, files) in os.walk(directory):
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         color_error = True
                         break
-                    color_check += 1 
+                    color_check += 1
+                    print("color_check = " + str(color_check))
                 print("File matched: {0}".format(f))
-            else:
-                pass
-            
-            if args.grayscale == True: 
+                
                 for key, value in grayscale_fields.items():
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        grayscale_error = True
+                        grayscale_error = True 
                         break
                     if value == str(tags[key]):
-                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f)) 
                     else:
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
                         grayscale_error = True
                         break
                     grayscale_check += 1
-                print("File matched: {0}".format(f))
-            else:
-                pass
-            
-            if bitonal_error == True and color_error == True and grayscale_error == True:
-                error_count += 1 
+                    print("grayscale_check = " + str(grayscale_check))
+                print("File matched: {0}".format(f))  
+                
+                if bitonal_error == True and color_error == True and grayscale_error == True:
+                    error_count += 1 
                 print(str(full_file_path + " failed all tests"))
                 w.writerow(["failed all tests"] + [full_file_path])
                 w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
                            ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
                 
-            if bitonal_check == 4 :
-                bitonal_count +=1 
-            elif bitonal_check != 4 : 
-                bitonal_check = 0
+                if bitonal_check == 4 :
+                    bitonal_count +=1 
+                elif bitonal_check != 4 : 
+                    bitonal_check = 0
+                    
+                if color_check == 4 :
+                    color_count += 1
+                elif color_check != 4: 
+                    color_check = 0 
+                    
+                if grayscale_check == 4 :
+                    grayscale_count += 1
+                elif grayscale_check != 4: 
+                    grayscale_check = 0  
+            
+            #this runs the bitonal and color test
+            elif args.bitonal == "True" and args.color == "True" and args.grayscale == "False":
+                for key, value in bitonal_fields.items():
+                    if key not in tags: #tag is missing from exifdata!
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        bitonal_error = True 
+                        break
+                    if value == str(tags[key]): #key and data have matched 
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else: #key is present but value does not match 
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        bitonal_error = True  
+                        break
+                    bitonal_check +=1
+                    print("bitonal_check = " + str(bitonal_check))
+                print("File matched: {0}".format(f))
                 
-            if color_check == 4 :
-                color_count += 1
-            elif color_check != 4: 
-                color_check = 0 
+                for key, value in color_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        color_error = True
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        color_error = True
+                        break
+                    color_check += 1
+                    print("color_check = " + str(color_check))
+                print("File matched: {0}".format(f))
                 
-            if grayscale_check == 4 :
-                grayscale_count += 1
-            elif grayscale_check != 4: 
-                grayscale_check = 0  
+                if bitonal_error == True and color_error == True:
+                    error_count += 1 
+                print(str(full_file_path + " failed both tests"))
+                w.writerow(["failed all tests"] + [full_file_path])
+                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
+                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
+                
+                if bitonal_check == 4 :
+                    bitonal_count +=1 
+                elif bitonal_check != 4 : 
+                    bitonal_check = 0
+                    
+                if color_check == 4 :
+                    color_count += 1
+                elif color_check != 4: 
+                    color_check = 0 
+            
+            #this runs the bitonal and grayscale test
+            elif args.bitonal == "True" and args.color == "False" and args.grayscale == "True": 
+                for key, value in bitonal_fields.items():
+                    if key not in tags: #tag is missing from exifdata!
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        bitonal_error = True 
+                        break
+                    if value == str(tags[key]): #key and data have matched 
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else: #key is present but value does not match 
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        bitonal_error = True  
+                        break
+                    bitonal_check +=1
+                    print("bitonal_check = " + str(bitonal_check))
+                print("File matched: {0}".format(f))
+                
+                for key, value in grayscale_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        grayscale_error = True 
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f)) 
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        grayscale_error = True
+                        break
+                    grayscale_check += 1
+                    print("grayscale_check = " + str(grayscale_check))
+                print("File matched: {0}".format(f))  
+                
+                if bitonal_error == True and grayscale_error == True:
+                    error_count += 1 
+                print(str(full_file_path + " failed both tests"))
+                w.writerow(["failed all tests"] + [full_file_path])
+                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
+                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
+                
+                if bitonal_check == 4 :
+                    bitonal_count +=1 
+                elif bitonal_check != 4 : 
+                    bitonal_check = 0
+                    
+                if grayscale_check == 4 :
+                    grayscale_count += 1
+                elif grayscale_check != 4: 
+                    grayscale_check = 0 
+            
+            #this runs the color and grayscale test
+            elif args.bitonal == "False" and args.color == "True" and args.grayscale == "True": 
+                for key, value in color_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        color_error = True
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        color_error = True
+                        break
+                    color_check += 1
+                    print("color_check = " + str(color_check))
+                print("File matched: {0}".format(f))
+                
+                for key, value in grayscale_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        grayscale_error = True 
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f)) 
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        grayscale_error = True
+                        break
+                    grayscale_check += 1
+                    print("grayscale_check = " + str(grayscale_check))
+                print("File matched: {0}".format(f))  
+                
+                if color_error == True and grayscale_error == True:
+                    error_count += 1 
+                print(str(full_file_path + " failed both tests"))
+                w.writerow(["failed all tests"] + [full_file_path])
+                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
+                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
+                
+                if color_check == 4 :
+                    color_count += 1
+                elif color_check != 4: 
+                    color_check = 0 
+                    
+                if grayscale_check == 4 :
+                    grayscale_count += 1
+                elif grayscale_check != 4: 
+                    grayscale_check = 0  
+            
+            #this runs just the grayscale test
+            elif args.bitonal == "True" and args.grayscale == "False" and args.color == "False": 
+                for key, value in bitonal_fields.items():
+                    if key not in tags: #tag is missing from exifdata!
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        error_count += 1 
+                        w.writerow(["failed bitonal test"] + ["missing key: " + str(key)] + [full_file_path])
+                        break
+                    if value == str(tags[key]): #key and data have matched 
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else: #key is present but value does not match 
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        error_count += 1  
+                        w.writerow(["failed bitonal test"] + 
+                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
+                                   [full_file_path])
+                        break
+                    bitonal_check +=1
+                    print("bitonal_check = " + str(bitonal_check))
+                print("File matched: {0}".format(f))
+                
+                if bitonal_check == 4 :
+                    bitonal_count +=1 
+                elif bitonal_check != 4 : 
+                    bitonal_check = 0
+            
+            #this runs just the color test
+            elif args.color == "True" and args.bitonal == "False" and args.grayscale == "False":
+                for key, value in color_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        error_count += 1
+                        w.writerow(["failed color test"] + ["missing key: " + str(key)] + [full_file_path])
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        error_count += 1
+                        w.writerow(["failed color test"] + 
+                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
+                                   [full_file_path])
+                        break
+                    color_check += 1
+                    print("color_check = " + str(color_check))
+                print("File matched: {0}".format(f))
+                
+                if color_check == 4 :
+                    color_count += 1
+                elif color_check != 4: 
+                    color_check = 0 
+            
+            #this runs just the grayscale test. 
+            elif args.grayscale == "True" and args.bitonal == "False" and args.color == "False": 
+                for key, value in grayscale_fields.items():
+                    if key not in tags:
+                        print("Did not find field {0}, halting processing of file: {1}".format(key, f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        error_count += 1  
+                        w.writerow(["failed grayscale test"] + ["missing key: " + str(key)] + [full_file_path])
+                        break
+                    if value == str(tags[key]):
+                        print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f)) 
+                    else:
+                        print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
+                        print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
+                        error_count += 1
+                        w.writerow(["failed grayscale test"] + 
+                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
+                                   [full_file_path])
+                        break
+                    grayscale_check += 1
+                    print("grayscale_check = " + str(grayscale_check))
+                print("File matched: {0}".format(f))
+                
+                if grayscale_check == 4 :
+                    grayscale_count += 1
+                elif grayscale_check != 4: 
+                    grayscale_check = 0  
                      
         else:
             print("File is not in .tif format")
@@ -174,3 +416,4 @@ w.writerow(["error_count = "] + [str(error_count)])
 w.writerow(["bitonal_count = "] + [str(bitonal_count)])
 w.writerow(["color_count = "] + [str(color_count)])
 w.writerow(["grayscale_count = "] + [str(grayscale_count)])           
+
