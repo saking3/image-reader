@@ -5,10 +5,14 @@ description: File will pull and analyze all .tifs from a directory, quantifying
              how many of them fit certain conditions.
              .csv file will be created with final results of analysis. 
              In the command prompt, you must enter a file directory (as a string), 
-             and whether or not you want to run a bitonal test(True/False), a color
-             test (True/False), and a grayscale test (True/False)
+             and whether or not you want to run a bitonal test(Y/N), a color
+             test (Y/N), and a grayscale test (Y/N). Errors for each image are printed
+             according to the image type the 'Image BitsPerSample' corresponds to,
+             except in the case where it doesn't correspond to a test being run. In 
+             such a case, a grayscale and color BitsPerSample defaults to the other test, 
+             and a bitonal BitsPerSample defaults to the grayscale test
              
-example cmd input: exifreader.py "C:\\Users\Sarah\Documents\failure test set" True True True
+example cmd input: exifreader.py "C:\\Users\Sarah\Documents\failure test set" y Y n 
 """
 
 import os
@@ -16,18 +20,19 @@ import exifread
 import argparse 
 import csv 
 
+
 # cmd user inputs
 #user is able to initially input a file director and the types of 
 #analyses they would like to run on the file
 parser = argparse.ArgumentParser()
 parser.add_argument("directory", type=str,
                     help="Enter a directory. Please use quotation marks around it!")
-parser.add_argument("bitonal", type=str,
-                    help="Would you like to test for bitonal images? Enter True or False.")
-parser.add_argument("color", type=str,
-                    help="Would you like to test for color images? Enter True or False.")
-parser.add_argument("grayscale", type=str,
-                    help="Would you like to test for grayscale images? Enter True or False.")
+parser.add_argument("bitonal", type=str.lower,
+                    help="Would you like to test for bitonal images? Enter Y/N")
+parser.add_argument("color", type=str.lower,
+                    help="Would you like to test for color images? Enter Y/N")
+parser.add_argument("grayscale", type=str.lower,
+                    help="Would you like to test for grayscale images? Enter Y/N.")
 args = parser.parse_args()
 directory = args.directory 
 
@@ -86,9 +91,12 @@ for (root, dirs, files) in os.walk(directory):
             tags = exifread.process_file(image) #returns exif tags 
             image.close() 
             
-            #this runs all 3 tests. 
-            if args.bitonal == "True" and args.color == "True" and args.grayscale == "True": 
-                for key, value in bitonal_fields.items():
+            #this runs all 3 tests. CHECKED AND WORKS
+            if args.bitonal == "y" and args.color == "y" and args.grayscale == "y": 
+                bitonal_error = False #these failed the bitonal test somehow        
+                color_error = False #these failed the color test somehow
+                grayscale_error = False #these failed the grayscale test somehow
+                for key, value in bitonal_fields.items(): 
                     if key not in tags: #tag is missing from exifdata!
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
@@ -102,7 +110,6 @@ for (root, dirs, files) in os.walk(directory):
                         bitonal_error = True  
                         break
                     bitonal_check +=1
-                    print("bitonal_check = " + str(bitonal_check))
                 print("File matched: {0}".format(f))
                 
                 for key, value in color_fields.items():
@@ -119,7 +126,6 @@ for (root, dirs, files) in os.walk(directory):
                         color_error = True
                         break
                     color_check += 1
-                    print("color_check = " + str(color_check))
                 print("File matched: {0}".format(f))
                 
                 for key, value in grayscale_fields.items():
@@ -136,16 +142,48 @@ for (root, dirs, files) in os.walk(directory):
                         grayscale_error = True
                         break
                     grayscale_check += 1
-                    print("grayscale_check = " + str(grayscale_check))
                 print("File matched: {0}".format(f))  
                 
                 if bitonal_error == True and color_error == True and grayscale_error == True:
                     error_count += 1 
-                print(str(full_file_path + " failed all tests"))
-                w.writerow(["failed all tests"] + [full_file_path])
-                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
-                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
-                
+                    print("error count: " + str(error_count))
+                    print(str(full_file_path + " failed all tests"))
+                    #bitonal
+                    w.writerow([full_file_path + " has the following errors: "])
+                    if str(tags['Image BitsPerSample']) == bitonal_fields['Image BitsPerSample'] :  
+                        if str(tags['Image BitsPerSample']) != bitonal_fields['Image BitsPerSample'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: '1'"])
+                        if str(tags['Image Compression']) != bitonal_fields['Image Compression'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'T6/Group 4 Fax\'"])                
+                        if str(tags['Image XResolution']) != bitonal_fields['Image XResolution'] :
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'600\'"])
+                        if str(tags['Image YResolution']) != bitonal_fields['Image YResolution'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'600\'"])
+                    #color
+                    elif str(tags['Image BitsPerSample']) == color_fields['Image BitsPerSample']: 
+                        if str(tags['Image BitsPerSample']) != color_fields['Image BitsPerSample'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'[8, 8, 8]\'"])
+                        if str(tags['Image Compression']) != color_fields['Image Compression'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                        if str(tags['Image XResolution']) != color_fields['Image XResolution'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                        if str(tags['Image YResolution']) != color_fields['Image YResolution'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
+                    
+                    #grayscale 
+                    elif str(tags['Image BitsPerSample']) == grayscale_fields['Image BitsPerSample'] : 
+                        if str(tags['Image BitsPerSample']) != grayscale_fields['Image BitsPerSample'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'8\'"])
+                        if str(tags['Image Compression']) != grayscale_fields['Image Compression'] :
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                        if str(tags['Image XResolution']) != grayscale_fields['Image XResolution'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                        if str(tags['Image YResolution']) != grayscale_fields['Image YResolution'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
+                    
+                    else : 
+                        w.writerow(["Image BitsPerSample " + str(tags['Image BitsPerSample']) + " does not match any known test"])
+                    
                 if bitonal_check == 4 :
                     bitonal_count +=1 
                 elif bitonal_check != 4 : 
@@ -162,7 +200,7 @@ for (root, dirs, files) in os.walk(directory):
                     grayscale_check = 0  
             
             #this runs the bitonal and color test
-            elif args.bitonal == "True" and args.color == "True" and args.grayscale == "False":
+            elif args.bitonal == "y" and args.color == "y" and args.grayscale == "n":
                 for key, value in bitonal_fields.items():
                     if key not in tags: #tag is missing from exifdata!
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
@@ -177,7 +215,6 @@ for (root, dirs, files) in os.walk(directory):
                         bitonal_error = True  
                         break
                     bitonal_check +=1
-                    print("bitonal_check = " + str(bitonal_check))
                 print("File matched: {0}".format(f))
                 
                 for key, value in color_fields.items():
@@ -194,16 +231,36 @@ for (root, dirs, files) in os.walk(directory):
                         color_error = True
                         break
                     color_check += 1
-                    print("color_check = " + str(color_check))
                 print("File matched: {0}".format(f))
                 
                 if bitonal_error == True and color_error == True:
                     error_count += 1 
-                print(str(full_file_path + " failed both tests"))
-                w.writerow(["failed all tests"] + [full_file_path])
-                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
-                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
-                
+                    print(str(full_file_path + " failed all tests"))
+                    w.writerow([full_file_path + " has the following errors:"])
+                    #bitonal errors
+                    if str(tags['Image BitsPerSample']) == bitonal_fields['Image BitsPerSample']:  
+                        if str(tags['Image BitsPerSample']) != bitonal_fields['Image BitsPerSample'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: '1'"])
+                        if str(tags['Image Compression']) != bitonal_fields['Image Compression'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'T6/Group 4 Fax\'"])                
+                        if str(tags['Image XResolution']) != bitonal_fields['Image XResolution'] :
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'600\'"])
+                        if str(tags['Image YResolution']) != bitonal_fields['Image YResolution'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'600\'"])
+                    #color and grayscale get checked as color
+                    elif str(tags['Image BitsPerSample']) == color_fields['Image BitsPerSample'] or str(tags['Image BitsPerSample']) == grayscale_fields['Image BitsPerSample']: 
+                        if str(tags['Image BitsPerSample']) != color_fields['Image BitsPerSample'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'[8, 8, 8]\'"])
+                        if str(tags['Image Compression']) != color_fields['Image Compression'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                        if str(tags['Image XResolution']) != color_fields['Image XResolution'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                        if str(tags['Image YResolution']) != color_fields['Image YResolution'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
+                    #not color, bitonal, or grayscale
+                    else : 
+                        w.writerow(["Image BitsPerSample " + str(tags['Image BitsPerSample']) + " does not match any known test"])
+                    
                 if bitonal_check == 4 :
                     bitonal_count +=1 
                 elif bitonal_check != 4 : 
@@ -215,7 +272,7 @@ for (root, dirs, files) in os.walk(directory):
                     color_check = 0 
             
             #this runs the bitonal and grayscale test
-            elif args.bitonal == "True" and args.color == "False" and args.grayscale == "True": 
+            elif args.bitonal == "y" and args.color == "n" and args.grayscale == "y": 
                 for key, value in bitonal_fields.items():
                     if key not in tags: #tag is missing from exifdata!
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
@@ -230,7 +287,6 @@ for (root, dirs, files) in os.walk(directory):
                         bitonal_error = True  
                         break
                     bitonal_check +=1
-                    print("bitonal_check = " + str(bitonal_check))
                 print("File matched: {0}".format(f))
                 
                 for key, value in grayscale_fields.items():
@@ -247,16 +303,36 @@ for (root, dirs, files) in os.walk(directory):
                         grayscale_error = True
                         break
                     grayscale_check += 1
-                    print("grayscale_check = " + str(grayscale_check))
                 print("File matched: {0}".format(f))  
                 
                 if bitonal_error == True and grayscale_error == True:
                     error_count += 1 
-                print(str(full_file_path + " failed both tests"))
-                w.writerow(["failed all tests"] + [full_file_path])
-                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
-                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
-                
+                    print(str(full_file_path + " failed both tests"))
+                    w.writerow([full_file_path + " has the following errors: "])
+                    #bitonal 
+                    if str(tags['Image BitsPerSample']) == bitonal_fields['Image BitsPerSample']:  
+                        if str(tags['Image BitsPerSample']) != bitonal_fields['Image BitsPerSample'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: '1'"])
+                        if str(tags['Image Compression']) != bitonal_fields['Image Compression'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: 'T6/Group 4 Fax'"])                
+                        if str(tags['Image XResolution']) != bitonal_fields['Image XResolution'] :
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: '600'"])
+                        if str(tags['Image YResolution']) != bitonal_fields['Image YResolution'] : 
+                            w.writerow(['bitonal error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: '600'"])
+                    #grayscale and color get tested as grayscale
+                    elif str(tags['Image BitsPerSample']) == grayscale_fields['Image BitsPerSample'] or str(tags['Image BitsPerSample']) == color_fields['Image BitsPerSample']: 
+                        if str(tags['Image BitsPerSample']) != grayscale_fields['Image BitsPerSample'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'8\'"])
+                        if str(tags['Image Compression']) != grayscale_fields['Image Compression'] :
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                        if str(tags['Image XResolution']) != grayscale_fields['Image XResolution'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                        if str(tags['Image YResolution']) != grayscale_fields['Image YResolution'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
+                    #not color, bitonal, or grayscale
+                    else : 
+                        w.writerow(["Image BitsPerSample " + str(tags['Image BitsPerSample']) + " does not match any known test"])
+                    
                 if bitonal_check == 4 :
                     bitonal_count +=1 
                 elif bitonal_check != 4 : 
@@ -268,7 +344,7 @@ for (root, dirs, files) in os.walk(directory):
                     grayscale_check = 0 
             
             #this runs the color and grayscale test
-            elif args.bitonal == "False" and args.color == "True" and args.grayscale == "True": 
+            elif args.bitonal == 'n' and args.color == 'y' and args.grayscale == 'y': 
                 for key, value in color_fields.items():
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
@@ -283,7 +359,6 @@ for (root, dirs, files) in os.walk(directory):
                         color_error = True
                         break
                     color_check += 1
-                    print("color_check = " + str(color_check))
                 print("File matched: {0}".format(f))
                 
                 for key, value in grayscale_fields.items():
@@ -300,16 +375,36 @@ for (root, dirs, files) in os.walk(directory):
                         grayscale_error = True
                         break
                     grayscale_check += 1
-                    print("grayscale_check = " + str(grayscale_check))
                 print("File matched: {0}".format(f))  
                 
                 if color_error == True and grayscale_error == True:
                     error_count += 1 
-                print(str(full_file_path + " failed both tests"))
-                w.writerow(["failed all tests"] + [full_file_path])
-                w.writerow(['image exif data'] + ['Image BitsPerSample: ' + str(tags['Image BitsPerSample'])] + ['Image Compression: ' + str(tags['Image Compression'])] +
-                           ['Image XResolution: ' + str(tags['Image XResolution'])] + ['Image YResolution: ' + str(tags['Image YResolution'])])
-                
+                    print(str(full_file_path + " failed both tests"))
+                    w.writerow(["failed all tests"] + [full_file_path])
+                    #color
+                    if str(tags['Image BitsPerSample']) == color_fields['Image BitsPerSample'] : 
+                        if str(tags['Image BitsPerSample']) != color_fields['Image BitsPerSample'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'[8, 8, 8]\'"])
+                        if str(tags['Image Compression']) != color_fields['Image Compression'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                        if str(tags['Image XResolution']) != color_fields['Image XResolution'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                        if str(tags['Image YResolution']) != color_fields['Image YResolution'] : 
+                            w.writerow(['color error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
+                    #grayscale and bitonal get checked as grayscale
+                    elif str(tags['Image BitsPerSample']) == grayscale_fields['Image BitsPerSample'] or str(tags['Image BitsPerSample']) == bitonal_fields['Image BitsPerSample'] : 
+                        if str(tags['Image BitsPerSample']) != grayscale_fields['Image BitsPerSample'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'8\'"])
+                        if str(tags['Image Compression']) != grayscale_fields['Image Compression'] :
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                        if str(tags['Image XResolution']) != grayscale_fields['Image XResolution'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                        if str(tags['Image YResolution']) != grayscale_fields['Image YResolution'] : 
+                            w.writerow(['grayscale error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
+                    #not color, bitonal, or grayscale
+                    else : 
+                        w.writerow(["Image BitsPerSample " + str(tags['Image BitsPerSample']) + " does not match any known test"])
+                     
                 if color_check == 4 :
                     color_count += 1
                 elif color_check != 4: 
@@ -319,85 +414,114 @@ for (root, dirs, files) in os.walk(directory):
                     grayscale_count += 1
                 elif grayscale_check != 4: 
                     grayscale_check = 0  
-            
-            #this runs just the grayscale test
-            elif args.bitonal == "True" and args.grayscale == "False" and args.color == "False": 
+                    
+            #this runs just the bitonal test
+            elif args.bitonal == 'y' and args.grayscale == 'n' and args.color == "n": 
                 for key, value in bitonal_fields.items():
+                    bitonal_error = False
                     if key not in tags: #tag is missing from exifdata!
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        error_count += 1 
-                        w.writerow(["failed bitonal test"] + ["missing key: " + str(key)] + [full_file_path])
+                        bitonal_error = True 
                         break
                     if value == str(tags[key]): #key and data have matched 
                         print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
                     else: #key is present but value does not match 
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        error_count += 1  
-                        w.writerow(["failed bitonal test"] + 
-                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
-                                   [full_file_path])
+                        bitonal_error = True
                         break
                     bitonal_check +=1
-                    print("bitonal_check = " + str(bitonal_check))
                 print("File matched: {0}".format(f))
                 
+                if bitonal_error == True :
+                    error_count += 1 
+                    print(str(full_file_path + " failed the bitonal test"))
+                    #bitonal
+                    w.writerow([full_file_path + " has the following errors: "])
+                    if str(tags['Image BitsPerSample']) != bitonal_fields['Image BitsPerSample'] : 
+                        w.writerow(['bitonal error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: '1'"])
+                    if str(tags['Image Compression']) != bitonal_fields['Image Compression'] : 
+                        w.writerow(['bitonal error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'T6/Group 4 Fax\'"])                
+                    if str(tags['Image XResolution']) != bitonal_fields['Image XResolution'] :
+                        w.writerow(['bitonal error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'600\'"])
+                    if str(tags['Image YResolution']) != bitonal_fields['Image YResolution'] : 
+                        w.writerow(['bitonal error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'600\'"])
+            
                 if bitonal_check == 4 :
                     bitonal_count +=1 
                 elif bitonal_check != 4 : 
                     bitonal_check = 0
             
             #this runs just the color test
-            elif args.color == "True" and args.bitonal == "False" and args.grayscale == "False":
+            elif args.color == 'y' and args.bitonal == 'n' and args.grayscale == 'n':
                 for key, value in color_fields.items():
+                    colo_error = False
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        error_count += 1
-                        w.writerow(["failed color test"] + ["missing key: " + str(key)] + [full_file_path])
+                        color_error = True
                         break
                     if value == str(tags[key]):
                         print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f))
                     else:
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        error_count += 1
-                        w.writerow(["failed color test"] + 
-                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
-                                   [full_file_path])
+                        color_error = True
                         break
                     color_check += 1
-                    print("color_check = " + str(color_check))
                 print("File matched: {0}".format(f))
-                
+                 
+                if color_error == True :
+                    error_count += 1 
+                    print(str(full_file_path + " failed the color test"))
+                    w.writerow([full_file_path + " has the following errors: "])
+                    if str(tags['Image BitsPerSample']) != color_fields['Image BitsPerSample'] : 
+                        w.writerow(['color error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'[8, 8, 8]\'"])
+                    if str(tags['Image Compression']) != color_fields['Image Compression'] : 
+                        w.writerow(['color error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                    if str(tags['Image XResolution']) != color_fields['Image XResolution'] : 
+                        w.writerow(['color error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                    if str(tags['Image YResolution']) != color_fields['Image YResolution'] : 
+                        w.writerow(['color error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
+
+            
                 if color_check == 4 :
                     color_count += 1
                 elif color_check != 4: 
                     color_check = 0 
             
             #this runs just the grayscale test. 
-            elif args.grayscale == "True" and args.bitonal == "False" and args.color == "False": 
+            elif args.grayscale == 'y' and args.bitonal == 'n' and args.color == 'n': 
+                grayscale_error = False 
                 for key, value in grayscale_fields.items():
                     if key not in tags:
                         print("Did not find field {0}, halting processing of file: {1}".format(key, f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        error_count += 1  
-                        w.writerow(["failed grayscale test"] + ["missing key: " + str(key)] + [full_file_path])
+                        grayscale_error = True  
                         break
                     if value == str(tags[key]):
                         print("Found match of key: {0} and value: {1} in file {2}".format(key, value, f)) 
                     else:
                         print("Field {0} with value {1} does not match, halting processing of file {2}".format(key,str(tags[key]), f))
                         print("Halted processing of file {0} with exif headers: {1}".format(f, tags))
-                        error_count += 1
-                        w.writerow(["failed grayscale test"] + 
-                                   ["value " + str(tags[key]) + " in file does not match desired key, value: "  + str(key) + ", " + str(value)] + 
-                                   [full_file_path])
-                        break
+                        grayscale_error = True
+                        break  
                     grayscale_check += 1
-                    print("grayscale_check = " + str(grayscale_check))
                 print("File matched: {0}".format(f))
+                
+                if grayscale_error == True :
+                    error_count += 1 
+                    print(str(full_file_path + " failed the grayscale test"))
+                    w.writerow([full_file_path + " has the following errors:"])
+                    if str(tags['Image BitsPerSample']) != grayscale_fields['Image BitsPerSample'] : 
+                        w.writerow(['grayscale error'] + ["value " + str(tags['Image BitsPerSample']) + " in file does not match desired Image BitsPerSample: \'8\'"])
+                    if str(tags['Image Compression']) != grayscale_fields['Image Compression'] :
+                        w.writerow(['grayscale error'] + ["value " + str(tags['Image Compression']) + " in file does not match desired Image Compression: \'Uncompressed\'"])
+                    if str(tags['Image XResolution']) != grayscale_fields['Image XResolution'] : 
+                        w.writerow(['grayscale error'] + ["value " + str(tags['Image XResolution']) + " in file does not match desired Image XResolution: \'400\'"])
+                    if str(tags['Image YResolution']) != grayscale_fields['Image YResolution'] : 
+                        w.writerow(['grayscale error'] + ["value " + str(tags['Image YResolution']) + " in file does not match desired Image YResolution: \'400\'"])
                 
                 if grayscale_check == 4 :
                     grayscale_count += 1
